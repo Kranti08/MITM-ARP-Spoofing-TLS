@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Open Network Security — Lab</title>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --accent:#1e90ff; --muted:#bfc9d9;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071025,#0b1220);color:var(--muted)}
+    .center{
+      min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+    }
+    .card{
+      width:760px; max-width:96%; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:12px; box-shadow:0 8px 30px rgba(2,6,23,0.6); padding:28px; border:1px solid rgba(255,255,255,0.02);
+    }
+    h1{margin:0 0 8px; font-size:1.6rem; color:#e6eef8}
+    p.lead{margin:0 0 18px; color:var(--muted)}
+    .meta{font-size:0.9rem; color:#9fb0d0}
+    .hidden{display:none}
+    .welcome {
+      text-align:center; padding:18px 8px;
+    }
+    .brand {
+      display:inline-block; background:linear-gradient(90deg,var(--accent), #8be6ff); color:#061421;
+      font-weight:700; padding:6px 12px; border-radius:999px; margin-bottom:12px;
+    }
+    .btn {
+      background:var(--accent); color:#021025; border:0; padding:10px 16px; border-radius:8px;
+      font-weight:600; cursor:pointer; margin:8px; box-shadow:0 6px 18px rgba(30,144,255,0.12);
+    }
+    .btn-secondary { background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.04); }
+    form { margin-top:14px; display:grid; gap:10px; }
+    label{font-size:0.9rem; color:#cfe0f6}
+    input[type=text], input[type=password]{
+      width:100%; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.04);
+      background:rgba(255,255,255,0.01); color:#e8f3ff; font-size:0.95rem;
+    }
+    .small{font-size:0.85rem; color:#93a8c8}
+    .row{display:flex; gap:10px; align-items:center}
+    footer{margin-top:18px; text-align:center; color:#8096b6; font-size:0.85rem}
+    pre.note{background:#021426; padding:10px; border-radius:8px; color:#88b6dd; font-size:0.85rem}
+  </style>
+</head>
+<body>
+  <main class="center">
+    <section class="card" role="main" aria-labelledby="lab-title">
+      <div id="welcome" class="welcome" aria-hidden="false">
+        <div class="brand">Open Network Security — Lab</div>
+        <h1 id="lab-title">Welcome to the MITM & TLS lab</h1>
+        <p class="lead">This short lab demonstrates how cleartext HTTP leaks credentials and how TLS protects them. You will submit a small login form and we will capture the traffic for analysis.</p>
+        <p class="meta">Server: <strong>192.168.56.101</strong> • Ports: HTTP 8080 / HTTPS 8443</p>
+        <div style="margin-top:18px;">
+          <button id="startBtn" class="btn" type="button">Start lab now</button>
+          <button id="readBtn" class="btn btn-secondary" type="button">Read instructions</button>
+        </div>
+        <p class="small" style="margin-top:12px">Automatically opening the form in <span id="countdown">5</span> seconds…</p>
+      </div>
+
+      <div id="instructions" class="hidden">
+        <h1 style="font-size:1.2rem">Quick instructions</h1>
+        <ol style="color:var(--muted); padding-left:18px">
+          <li>Open the login form below and enter sample credentials (e.g. <code>kranti</code>/<code>kranti</code>).</li>
+          <li>On the attacker VM we will capture the packets and inspect the POST body.</li>
+          <li>After verification you will re-run the form over HTTPS (port 8443) to compare.</li>
+        </ol>
+        <div style="text-align:center; margin-top:12px;">
+          <button id="gotoForm" class="btn">Open login form</button>
+        </div>
+      </div>
+
+      <div id="formArea" class="hidden" aria-hidden="true">
+        <h1 style="font-size:1.15rem">Simple login form</h1>
+        <p class="small">This form posts to <code>/submit</code> (HTTP POST). For the lab use sample credentials and then check the attacker capture.</p>
+
+        <form action="/submit" method="post" autocomplete="off" aria-describedby="hint">
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text" required placeholder="Enter username">
+
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" required placeholder="Enter password">
+
+          <div class="row">
+            <button type="submit" class="btn">Login</button>
+            <button type="button" id="resetBtn" class="btn btn-secondary">Reset</button>
+          </div>
+        </form>
+
+                <footer>
+          <div class="small">Prepared for the course: Open Network Security — Hands-on lab</div>
+        </footer>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // auto transition after countdown; user may skip via Start button
+    (function(){
+      const welcome = document.getElementById('welcome');
+      const formArea = document.getElementById('formArea');
+      const instructions = document.getElementById('instructions');
+      const countdownEl = document.getElementById('countdown');
+      const startBtn = document.getElementById('startBtn');
+      const readBtn = document.getElementById('readBtn');
+      const gotoForm = document.getElementById('gotoForm');
+      const resetBtn = document.getElementById('resetBtn');
+
+      let seconds = 5, timer;
+      function showForm(){
+        welcome.classList.add('hidden');
+        instructions.classList.add('hidden');
+        formArea.classList.remove('hidden');
+        welcome.setAttribute('aria-hidden','true');
+        formArea.setAttribute('aria-hidden','false');
+      }
+      function startCountdown(){
+        countdownEl.textContent = seconds;
+        timer = setInterval(()=>{
+          seconds--;
+          countdownEl.textContent = seconds;
+          if(seconds<=0){
+            clearInterval(timer);
+            showForm();
+          }
+        }, 1000);
+      }
+
+      startBtn.addEventListener('click', ()=>{
+        clearInterval(timer);
+        showForm();
+      });
+      readBtn.addEventListener('click', ()=>{
+        instructions.classList.toggle('hidden');
+      });
+      gotoForm.addEventListener('click', showForm);
+      resetBtn.addEventListener('click', ()=>{
+        document.getElementById('username').value='';
+        document.getElementById('password').value='';
+        document.getElementById('username').focus();
+      });
+
+      startCountdown();
+    })();
+  </script>
+</body>
+</html>
